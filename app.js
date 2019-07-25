@@ -5,6 +5,8 @@ bcrypt=require('bcrypt-nodejs');
 cors=require('cors');
 mongoose = require("mongoose");
 User = require('./model/user');
+Post =require('./model/post');
+upload=require('./service/upload');
 
 
 mongoose.connect("mongodb://localhost/publicshare_app");
@@ -17,7 +19,6 @@ var corsOptions = {
     }
     
     app.use(cors(corsOptions))
-
 
 
 app.post('/api/signup',(req, res) => {
@@ -66,10 +67,41 @@ app.post('/api/login',(req, res) => {
                 }
              }   // console.log("log in successfull!")
         });
-        if(!value){
-        console.log("Sorry! password is wrong")
-    }
-})    
+        // if(!value){
+        // console.log("Sorry! password is wrong")
+    // }
+})  
+
+// var singleUpload=upload.single('image');
+// app.post('/image-upload',function(req,res){
+//     singleUpload(req,res,function(err){
+//         return res.json({'imageUrl':req.file.location})
+//     })
+// })
+
+// app.post('/api/postcreate',function(res,res){
+//     var title=req.body.title;
+//     var description=req.body.description;
+
+//     var postData={
+//         title:title,
+//         description:description
+//     }
+//     Post.create(postData,function(err,post){
+//         if(err){
+//             console.log(err)
+//         }else{
+//             console.log(post)
+//         }
+    
+//     })    
+
+// })
+   
+
+
+
+
 app.listen(8880, function () {
     console.log("server has started");
 })
