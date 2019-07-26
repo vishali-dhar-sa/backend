@@ -1,7 +1,11 @@
 var mongoose=require("mongoose")
 
 var UserSchema=new mongoose.Schema({
-    email:String,
+    email:{
+        type:String,
+        trim: true,
+        lowercase: true,
+    },
     password:String,
 })
 
