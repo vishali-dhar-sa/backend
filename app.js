@@ -1,14 +1,16 @@
-var express = require("express");
-app = express();
-bodyParser = require("body-parser");
-bcrypt=require('bcrypt-nodejs');
-cors=require('cors');
-mongoose = require("mongoose");
-User = require('./model/user');
-Post =require('./model/post');
-multer=require('multer');
-multerS3=require('multer-s3');
-aws=require('aws-sdk');
+var express    = require("express");
+    app        = express();
+    bodyParser = require("body-parser");
+    bcrypt     = require('bcrypt-nodejs');
+    cors       = require('cors');
+    mongoose   = require("mongoose");
+    User       = require('./model/user');
+    Post       = require('./model/post');
+    multer     = require('multer');
+    multerS3   = require('multer-s3');
+    aws        = require('aws-sdk');
+    jwt        = require('jsonwebtoken');
+
 var corsOptions = {
     origin: 'http://localhost:4200',
     optionsSuccessStatus: 200,
@@ -30,8 +32,21 @@ mongoose.connect("mongodb://localhost:27017/publicshare_app" ,{ useNewUrlParser:
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-
-
+function verifyToken(req,res,next){
+    if(!req.headers.authorization){
+        return res.status(401).send('Unauthorized request')
+    }
+    let token=req.headers.authorization.split('')[1]
+    if(token === 'null'){
+        return res.status(401).send('Unauthorized request')
+    }
+    let payload =jwt.verify(token, 'secretkey')
+    if(!payload){
+        return res.send(401).send('Unauthorized request')
+    }
+    req.userId =payload.subject
+    next()
+}
 
 
 app.post('/api/signup',(req, res) => {
@@ -45,11 +60,13 @@ app.post('/api/signup',(req, res) => {
         password:hash
     }
 
-    User.create(Userdata, function(err, res){
+    User.create(Userdata, function(err, registeredUser){
         if (err) {
             console.log(err)
         } else {
-            console.log(res)
+            let payload={subject:registeredUser._id}
+            let token=jwt.sign(payload,"secretkey")
+            res.json({token:token})
         }
 
     })
@@ -65,17 +82,19 @@ app.post('/api/login',(req, res) => {
     //     password:password1
     // }
     var value=false;
-    User.findOne({email : email1}).exec(function(err,data){
+    User.findOne({email : email1}).exec(function(err,user){
         if(err){
             console.log(err);
-        }if(!data){
+        }if(!user){
             console.log("Log in fail")
         }
         else{
-              value= bcrypt.compareSync(password1, data.password)
+              value= bcrypt.compareSync(password1, user.password)
               if(value){
                   console.log("matched");
-                  res.json(data);
+                  let payload={subject:user._id}
+                  let token =jwt.sign(payload,'secretkey')
+                  res.json({token:token});
                   return;
                 }
              }   // console.log("log in successfull!")
@@ -85,11 +104,11 @@ app.post('/api/login',(req, res) => {
     // }
 })
 
-aws.config.update({
-    secretAccessKey: 'ZkGH0h2hCM27hH/zJ7ghGjSSqVjjtOOWjbt3v5he',
-    accessKeyId: 'AKIAILQS6MVEVPBOXDQA',
-    region: 'us-east-2',
-    ACL:'public-read'
+aws.config.update({ 
+    secretAccessKey: '',
+    accessKeyId: '',
+    region: '',
+    ACL:''
 });
 
 
@@ -120,11 +139,14 @@ console.log(upload.array('file'));
         file:fileURL
     }
 
-    Post.create(postData,function(err,post){
+    Post.create(postData, function(err,post){
         if(err){
             console.log(err)
+            res.status(400).send(err)
+
         }if(!post){
             console.log('no posts available')
+
         }else{
             console.log(post)
         }
