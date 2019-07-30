@@ -10,44 +10,20 @@ var express    = require("express");
     multerS3   = require('multer-s3');
     aws        = require('aws-sdk');
     jwt        = require('jsonwebtoken');
+    env        = require('dotenv');
 
 var corsOptions = {
-    origin: 'http://localhost:4200',
+    origin: 'http://localhost:4000',
     optionsSuccessStatus: 200,
      // some legacy browsers (IE11, various SmartTVs) choke on 204 
     }
     
 app.use(cors(corsOptions));
-// app.use(function(req, res, next) {
-//     res.setHeader("Access-Control-Allow-Methods", "POST, PUT, OPTIONS, DELETE, GET");
-//     res.header("Access-Control-Allow-Origin", "http://localhost:3000");
-//     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-//     res.header("Access-Control-Allow-Credentials", true);
-//     next();
-// });
-var k;
 
-mongoose.connect("mongodb://localhost:27017/publicshare_app" ,{ useNewUrlParser: true });
+mongoose.connect("mongodb://localhost:"+ process.env.DB_PORT + "/publicshare_app" ,{ useNewUrlParser: true });
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-function verifyToken(req,res,next){
-    if(!req.headers.authorization){
-        return res.status(401).send('Unauthorized request')
-    }
-    let token=req.headers.authorization.split('')[1]
-    if(token === 'null'){
-        return res.status(401).send('Unauthorized request')
-    }
-    let payload =jwt.verify(token, 'secretkey')
-    if(!payload){
-        return res.send(401).send('Unauthorized request')
-    }
-    req.userId =payload.subject
-    next()
-}
-
 
 app.post('/api/signup',(req, res) => {
     console.log(req.body);
@@ -74,14 +50,9 @@ app.post('/api/signup',(req, res) => {
 
 app.post('/api/login',(req, res) => {
     var email1 = req.body.email;
-   
     var password1 = req.body.password;
-
-    // var Userdata = {
-    //     email:email1,
-    //     password:password1
-    // }
     var value=false;
+
     User.findOne({email : email1}).exec(function(err,user){
         if(err){
             console.log(err);
@@ -105,10 +76,10 @@ app.post('/api/login',(req, res) => {
 })
 
 aws.config.update({ 
-    secretAccessKey: '',
-    accessKeyId: '',
-    region: '',
-    ACL:''
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: process.env. AWS_SECRET_ACCESS_Id,
+    region: process.env.AWS_REGION,
+    ACL:'public-read'
 });
 
 
@@ -118,19 +89,22 @@ var upload = multer({
         s3: s3,
         bucket: 'upload-project-images',
         key: function (req, file, cb) {
-            cb(null,file.originalname);
+           
+            cb(null, new Date().getTime() + "-" + file.originalname);
+            console.log(file)
         }
         
     })
     
 });
 
+
 app.post('/api/upload',upload.array('file'), function (req, res, next) {
     var title=req.body.title;
     var description=req.body.description;
-    
-    var fileURL= 'https://s3.console.aws.amazon.com/s3/buckets/upload-project-images/'+req.body.file;
-console.log(upload.array('file'));
+    var fileURL=req.files[0].key;
+
+    console.log(upload.array('file'));
     console.log(title,description,fileURL)
 
     var postData={
@@ -154,12 +128,32 @@ console.log(upload.array('file'));
     res.send("Uploaded!");
 });
 
-app.get('/postcreate',(req,res)=>{
-  res.send({
-      message: "Hello"
-  })
-});
+app.get("/home",function(req,res){
+    Post.find({}, function(err,allPosts){
+        if(err){
+            console.log(err);
+        }else{
+            console.log(allPosts);
+            res.json({allPosts})
+        } 
+    })      
+    
+})
 
-app.listen(8880, function () {
+app.get("/home/:id",function(req,res){
+    Post.findById(req.params.id ,function(err,post){
+        if(err){
+            console.log(err)
+        }else{
+            console.log(post)
+            //res.send("post found")
+        }
+    })
+
+    
+})
+
+
+app.listen(process.env.PORT, function () {
     console.log("server has started");
 })
